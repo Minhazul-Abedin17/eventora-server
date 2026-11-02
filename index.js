@@ -60,7 +60,6 @@ app.get("/all-events/:id", async (req, res) => {
   res.send(result);
 });
 
-
 app.get("/my-booking/check", async (req, res) => {
   const result = await bookingCollection.findOne({
     email: req.query.email,
@@ -89,6 +88,29 @@ app.get("/", (req, res) => {
   res.send({ msg: "Server is running fine" });
 });
 
+app.patch("/all-events/:id", async (req, res) => {
+  const { email, ...updatedData } = req.body;
+  const result = await eventCollection.updateOne(
+    { _id: new ObjectId(req.params.id), "organizer.email": email },
+    { $set: updatedData },
+  );
+  res.send(result);
+});
+app.delete("/all-events/:id", async (req, res) => {
+  const result = await eventCollection.deleteOne({
+    _id: new ObjectId(req.params.id),
+    "organizer.email": req.query.email,
+  });
+  res.send(result);
+});
+app.delete("/my-booking/:id", async (req, res) => {
+  const result = await bookingCollection.deleteOne({
+    _id: new ObjectId(req.params.id),
+    email: req.query.email,
+  });
+
+  res.send(result);
+});
 app.listen(PORT, () => {
   console.log(`Server is running at ${PORT}`);
 });
