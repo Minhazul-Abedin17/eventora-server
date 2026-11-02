@@ -53,6 +53,25 @@ app.get("/all-events", async (req, res) => {
   res.send(result);
 });
 
+// Get 6 recent upcoming events
+app.get("/upcoming-events", async (req, res) => {
+  try {
+    const today = new Date().toLocaleDateString("en-CA", {
+      timeZone: "Asia/Dhaka",
+    });
+
+    const result = await eventCollection
+      .find({ eventDate: { $gte: today } })
+      .sort({ eventDate: 1, eventTime: 1 })
+      .limit(6)
+      .toArray();
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Failed to load upcoming events" });
+  }
+});
+
 //http://localhost:8000/all-events/${id}
 app.get("/all-events/:id", async (req, res) => {
   const { id } = req.params;
