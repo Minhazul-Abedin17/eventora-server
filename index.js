@@ -24,12 +24,20 @@ export async function connectToMongoDB() {
 const mongoClient = await connectToMongoDB()
 const db = mongoClient.db('eventora')
 const eventCollection = db.collection('events')
-
+const bookingCollection = db.collection('bookings')
 
 //http://localhost:8000/create-event
 app.post('/create-event',async(req,res)=>{
 const data = req.body;
 const result = await eventCollection.insertOne(data)
+console.log(result)
+res.send(result)
+})
+
+//http://localhost:8000/my-booking
+app.post('/my-booking',async(req,res)=>{
+const data = req.body;
+const result = await bookingCollection.insertOne(data)
 console.log(result)
 res.send(result)
 })
@@ -40,10 +48,17 @@ app.get('/all-events',async(req,res)=>{
   res.send(result)
 })
 
-//http://localhost:8000/all-events
+//http://localhost:8000/all-events/${id}
 app.get('/all-events/:id',async(req,res)=>{
   const {id} = req.params;
   const result = await eventCollection.findOne({_id :new ObjectId(id)})
+  res.send(result)
+})
+
+//http://localhost:8000/my-booking/${email}
+app.get('/my-booking/:email',async(req,res)=>{
+  const {email} = req.params
+  const result = await bookingCollection.find({email : email}).toArray()
   res.send(result)
 })
 
