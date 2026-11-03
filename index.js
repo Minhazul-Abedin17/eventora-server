@@ -127,7 +127,6 @@ app.delete("/my-booking/:id", async (req, res) => {
     _id: new ObjectId(req.params.id),
     email: req.query.email,
   });
-
   res.send(result);
 });
 app.listen(PORT, () => {
