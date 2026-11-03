@@ -2,6 +2,7 @@ import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import "dotenv/config";
 import cors from "cors";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const app = express();
 const PORT = 8000;
@@ -24,8 +25,31 @@ const db = mongoClient.db("eventora");
 const eventCollection = db.collection("events");
 const bookingCollection = db.collection("bookings");
 
+// Better Auth JWKS
+const JWKS = createRemoteJWKSet(new URL("http://localhost:3000/api/auth/jwks"));
+const verifyToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).send({
+        message: "Unauthorized: Token is missing",
+      });
+    }
+    const token = authHeader.split(" ")[1];
+    const { payload } = await jwtVerify(token, JWKS);
+    console.log("Verified User:", payload);
+    req.user = payload;
+    next();
+  } catch (error) {
+    console.error("JWT Verification Error:", error.message);
+    return res.status(401).send({
+      message: "Unauthorized: Invalid token",
+    });
+  }
+};
+
 //http://localhost:8000/create-event
-app.post("/create-event", async (req, res) => {
+app.post("/create-event", verifyToken ,async (req, res) => {
   const data = req.body;
   const result = await eventCollection.insertOne(data);
   console.log(result);
@@ -34,7 +58,7 @@ app.post("/create-event", async (req, res) => {
 
 //http://localhost:8000/my-booking
 
-app.post("/my-booking", async (req, res) => {
+app.post("/my-booking", verifyToken, async (req, res) => {
   const data = req.body;
   const oldBooking = await bookingCollection.findOne({
     email: data.email,
@@ -48,7 +72,7 @@ app.post("/my-booking", async (req, res) => {
 });
 
 //http://localhost:8000/all-events
-app.get("/all-events", async (req, res) => {
+app.get("/all-events",verifyToken, async (req, res) => {
   const result = await eventCollection.find().toArray();
   res.send(result);
 });
@@ -73,13 +97,13 @@ app.get("/upcoming-events", async (req, res) => {
 });
 
 //http://localhost:8000/all-events/${id}
-app.get("/all-events/:id", async (req, res) => {
+app.get("/all-events/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
   const result = await eventCollection.findOne({ _id: new ObjectId(id) });
   res.send(result);
 });
 
-app.get("/my-booking/check", async (req, res) => {
+app.get("/my-booking/check", verifyToken,async (req, res) => {
   const result = await bookingCollection.findOne({
     email: req.query.email,
     eventId: req.query.eventId,
@@ -89,14 +113,14 @@ app.get("/my-booking/check", async (req, res) => {
 });
 
 //http://localhost:8000/my-booking/${email}
-app.get("/my-booking/:email", async (req, res) => {
+app.get("/my-booking/:email",verifyToken, async (req, res) => {
   const { email } = req.params;
   const result = await bookingCollection.find({ email: email }).toArray();
   res.send(result);
 });
 
 //http://localhost:8000/my-created-events/${email}
-app.get("/my-created-events/:email", async (req, res) => {
+app.get("/my-created-events/:email", verifyToken,async (req, res) => {
   const { email } = req.params;
   const result = await eventCollection.find({ email: email }).toArray();
   res.send(result);
@@ -107,7 +131,7 @@ app.get("/", (req, res) => {
   res.send({ msg: "Server is running fine" });
 });
 
-app.patch("/all-events/:id", async (req, res) => {
+app.patch("/all-events/:id", verifyToken, async (req, res) => {
   const { email, ...updatedData } = req.body;
   const result = await eventCollection.updateOne(
     { _id: new ObjectId(req.params.id), "organizer.email": email },
@@ -115,14 +139,14 @@ app.patch("/all-events/:id", async (req, res) => {
   );
   res.send(result);
 });
-app.delete("/all-events/:id", async (req, res) => {
+app.delete("/all-events/:id",verifyToken, async (req, res) => {
   const result = await eventCollection.deleteOne({
     _id: new ObjectId(req.params.id),
     "organizer.email": req.query.email,
   });
   res.send(result);
 });
-app.delete("/my-booking/:id", async (req, res) => {
+app.delete("/my-booking/:id",verifyToken, async (req, res) => {
   const result = await bookingCollection.deleteOne({
     _id: new ObjectId(req.params.id),
     email: req.query.email,
